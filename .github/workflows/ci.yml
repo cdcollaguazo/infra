@@ -28,4 +28,4 @@ jobs:
           chmod +x mvnw
 
           echo "Starting compilation..."          
-          mvnw clean compile
+          ./mvnw clean compile
