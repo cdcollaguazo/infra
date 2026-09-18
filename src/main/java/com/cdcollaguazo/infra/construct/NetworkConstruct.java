@@ -1,6 +1,7 @@
 package com.cdcollaguazo.infra.construct;
 
 import software.amazon.awscdk.services.ec2.*;
+import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -58,6 +59,9 @@ public class NetworkConstruct extends Construct {
                 .description("Security group for ECS")
                 .build();
 
+        ecsSg.addIngressRule(albSg, Port.tcp(8080), "Allow TCP 8080 from ALB");
+        ecsSg.addIngressRule(albSg, Port.tcp(9000), "Allow TCP 9000 from ALB");
+
         albSg.addEgressRule(ecsSg, Port.tcp(8080), "Allow TCP 8080 to ECS");
         albSg.addEgressRule(ecsSg, Port.tcp(9000), "Allow TCP 9000 to ECS");
 
@@ -69,6 +73,51 @@ public class NetworkConstruct extends Construct {
                 .build();
 
         rdsSg.addIngressRule(ecsSg, Port.tcp(5432), "Allow TCP 5432 from ECS");
+
+        // String Parameters
+        StringParameter.Builder.create(this, "VpcParameter")
+                .parameterName("/cdcollaguazo/vpc/vpc-id")
+                .stringValue(vpc.getVpcId())
+                .build();
+
+        StringParameter.Builder.create(this, "Az1Parameter")
+                .parameterName("/cdcollaguazo/vpc/az-1")
+                .stringValue(vpc.getAvailabilityZones().get(0))
+                .build();
+
+        StringParameter.Builder.create(this, "Az2Parameter")
+                .parameterName("/cdcollaguazo/vpc/az-2")
+                .stringValue(vpc.getAvailabilityZones().get(1))
+                .build();
+
+        List<String> privateSubnetsIds = vpc.getPrivateSubnets().stream()
+                .map(ISubnet::getSubnetId)
+                .toList();
+
+        StringParameter.Builder.create(this, "PrivateSubnet1Parameter")
+                .parameterName("/cdcollaguazo/vpc/private-subnet-1-id")
+                .stringValue(privateSubnetsIds.get(0))
+                .build();
+
+        StringParameter.Builder.create(this, "PrivateSubnet2Parameter")
+                .parameterName("/cdcollaguazo/vpc/private-subnet-2-id")
+                .stringValue(privateSubnetsIds.get(1))
+                .build();
+
+        StringParameter.Builder.create(this, "AlbSgParameter")
+                .parameterName("/cdcollaguazo/vpc/alb-sg-id")
+                .stringValue(albSg.getSecurityGroupId())
+                .build();
+
+        StringParameter.Builder.create(this, "EcsSgParameter")
+                .parameterName("/cdcollaguazo/vpc/ecs-sg-id")
+                .stringValue(ecsSg.getSecurityGroupId())
+                .build();
+
+        StringParameter.Builder.create(this, "RdsSgParameter")
+                .parameterName("/cdcollaguazo/vpc/rds-sg-id")
+                .stringValue(rdsSg.getSecurityGroupId())
+                .build();
     }
 
     public Vpc getVpc() {

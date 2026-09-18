@@ -7,6 +7,7 @@ import software.amazon.awscdk.services.ec2.Vpc;
 import software.amazon.awscdk.services.ecs.Cluster;
 import software.amazon.awscdk.services.ecs.ContainerInsights;
 import software.amazon.awscdk.services.elasticloadbalancingv2.*;
+import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
 public class ComputeConstruct extends Construct {
@@ -17,7 +18,7 @@ public class ComputeConstruct extends Construct {
         super(scope, id);
 
         // Cluster
-        Cluster.Builder.create(this, "EcsCluster")
+        Cluster ecsCluster = Cluster.Builder.create(this, "EcsCluster")
                 .clusterName("cdcollaguazo")
                 .vpc(vpc)
                 .containerInsightsV2(ContainerInsights.ENHANCED)
@@ -35,7 +36,7 @@ public class ComputeConstruct extends Construct {
                 .securityGroup(albSg)
                 .build();
 
-        alb.addListener("HttpListener",
+        ApplicationListener albHttpListener = alb.addListener("AlbHttpListener",
                 ApplicationListenerProps.builder()
                         .loadBalancer(alb)
                         .protocol(ApplicationProtocol.HTTP)
@@ -51,6 +52,22 @@ public class ComputeConstruct extends Construct {
                                 )
                         )
                         .build());
+
+        // String Parameters
+        StringParameter.Builder.create(this, "EcsClusterArnParameter")
+                .parameterName("/cdcollaguazo/ecs/cluster-arn")
+                .stringValue(ecsCluster.getClusterArn())
+                .build();
+
+        StringParameter.Builder.create(this, "EcsClusterNameParameter")
+                .parameterName("/cdcollaguazo/ecs/cluster-name")
+                .stringValue(ecsCluster.getClusterName())
+                .build();
+
+        StringParameter.Builder.create(this, "AlbHttpListenerParameter")
+                .parameterName("/cdcollaguazo/alb/http-listener-arn")
+                .stringValue(albHttpListener.getListenerArn())
+                .build();
     }
 
     public ApplicationLoadBalancer getAlb() {

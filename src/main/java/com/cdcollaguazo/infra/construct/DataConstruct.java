@@ -5,6 +5,7 @@ import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.services.ec2.*;
 import software.amazon.awscdk.services.ec2.InstanceType;
 import software.amazon.awscdk.services.rds.*;
+import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -18,7 +19,7 @@ public class DataConstruct extends Construct {
         super(scope, id);
 
         // RDS
-        DatabaseInstance.Builder.create(this, "Rds")
+        DatabaseInstance rds = DatabaseInstance.Builder.create(this, "Rds")
                 .engine(DatabaseInstanceEngine.postgres(
                         builder()
                                 .version(PostgresEngineVersion.VER_18)
@@ -46,6 +47,22 @@ public class DataConstruct extends Construct {
                 .databaseName("postgres")
                 .backupRetention(Duration.days(1))
                 .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
+        // String Parameters
+        StringParameter.Builder.create(this, "RdsHostParameter")
+                .parameterName("/cdcollaguazo/rds/rds-host")
+                .stringValue(rds.getDbInstanceEndpointAddress())
+                .build();
+
+        StringParameter.Builder.create(this, "RdsPortParameter")
+                .parameterName("/cdcollaguazo/rds/rds-port")
+                .stringValue(rds.getDbInstanceEndpointPort())
+                .build();
+
+        StringParameter.Builder.create(this, "RdsSecretParameter")
+                .parameterName("/cdcollaguazo/rds/secret-arn")
+                .stringValue(rds.getSecret().getSecretArn())
                 .build();
     }
 
