@@ -1,30 +1,35 @@
 package com.cdcollaguazo.infra.construct;
 
+import com.cdcollaguazo.infra.config.Config;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.services.certificatemanager.Certificate;
 import software.amazon.awscdk.services.certificatemanager.ICertificate;
 import software.amazon.awscdk.services.cloudfront.*;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.VpcOrigin;
+import software.amazon.awscdk.services.cloudfront.origins.VpcOriginWithEndpointProps;
 import software.amazon.awscdk.services.elasticloadbalancingv2.ApplicationLoadBalancer;
 import software.amazon.awscdk.services.route53.*;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.*;
+import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
 import java.util.List;
 import java.util.Map;
 
-import static com.cdcollaguazo.infra.config.EnvironmentConfig.*;
-
 public class IngressConstruct extends Construct {
 
-    public IngressConstruct(Construct scope, String id, ApplicationLoadBalancer alb) {
+    private final String platformName;
+
+    public IngressConstruct(Construct scope, String id, ApplicationLoadBalancer alb, Config config) {
         super(scope, id);
+
+        this.platformName = config.platformName();
 
         // S3 Bucket
         Bucket bucket = Bucket.Builder.create(this, "S3")
-                .bucketName("cdcollaguazo")
+                .bucketName(platformName)
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .encryption(BucketEncryption.S3_MANAGED)
                 .publicReadAccess(false)
@@ -34,19 +39,24 @@ public class IngressConstruct extends Construct {
 
         // Alb behavior
         BehaviorOptions albOptions = BehaviorOptions.builder()
-                .origin(VpcOrigin.withApplicationLoadBalancer(alb))
+                .origin(VpcOrigin.withApplicationLoadBalancer(
+                        alb, VpcOriginWithEndpointProps.builder()
+                                .protocolPolicy(OriginProtocolPolicy.HTTP_ONLY)
+                                .httpPort(80)
+                                .build()
+                        )
+                )
                 .allowedMethods(AllowedMethods.ALLOW_ALL)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
                 .build();
 
         // Certificate
-        ICertificate certificate = Certificate.fromCertificateArn(this, "Certificate",
-                CERTIFICATE_ARN);
+        ICertificate certificate = Certificate.fromCertificateArn(this, "Certificate", config.certificateArn());
 
         // CloudFront Distribution
         Distribution cfDistribution = Distribution.Builder.create(this, "CfDistribution")
-                .domainNames(List.of("www." + MAIN_HOST, MAIN_HOST))
+                .domainNames(List.of("www." + config.platformHost(), config.platformHost()))
                 .certificate(certificate)
                 .defaultRootObject("index.html")
                 .defaultBehavior(BehaviorOptions.builder()
@@ -54,6 +64,7 @@ public class IngressConstruct extends Construct {
                         .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
                         .build())
                 .additionalBehaviors(Map.of(
+                        "/auth", albOptions,
                         "/auth/*", albOptions,
                         "*/api/*", albOptions
                 ))
@@ -62,8 +73,8 @@ public class IngressConstruct extends Construct {
         // Hosted zone
         IHostedZone hostedZone = HostedZone.fromHostedZoneAttributes(this, "HostedZone",
                 HostedZoneAttributes.builder()
-                        .hostedZoneId(HOSTED_ZONE_ID)
-                        .zoneName(MAIN_HOST)
+                        .hostedZoneId(config.hostedZoneId())
+                        .zoneName(config.platformHost())
                         .build());
 
         // WWW Record
@@ -79,6 +90,21 @@ public class IngressConstruct extends Construct {
                 .recordName("")
                 .target(RecordTarget.fromAlias(new CloudFrontTarget(cfDistribution)))
                 .build());
+
+        // String Parameters
+        StringParameter.Builder.create(this, "S3BucketNameParameter")
+                .parameterName(buildParameterName("s3", "bucket-name"))
+                .stringValue(bucket.getBucketName())
+                .build();
+
+        StringParameter.Builder.create(this, "CfDistributionIdParameter")
+                .parameterName(buildParameterName("cf", "distribution-id"))
+                .stringValue(cfDistribution.getDistributionId())
+                .build();
+    }
+
+    private String buildParameterName(String module, String parameter) {
+        return "/" + platformName + "/" + module + "/" + parameter;
     }
 
 }
