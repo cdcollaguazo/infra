@@ -48,6 +48,7 @@ public class IngressConstruct extends Construct {
                 )
                 .allowedMethods(AllowedMethods.ALLOW_ALL)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
+                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
                 .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
                 .build();
 
