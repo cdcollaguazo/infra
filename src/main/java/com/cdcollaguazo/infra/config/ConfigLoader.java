@@ -6,8 +6,7 @@ public class ConfigLoader {
 
     public static Config loadConfig() {
         return new Config(
-                required("PLATFORM_NAME"),
-                required("PLATFORM_HOST"),
+                required("DOMAIN"),
                 required("HOSTED_ZONE_ID"),
                 required("CERTIFICATE_ARN"),
                 required("ROOT_DB_USER")
