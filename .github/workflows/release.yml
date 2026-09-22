@@ -12,27 +12,35 @@ jobs:
     runs-on: ubuntu-24.04
     environment: Prod
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Set up Java
+      - name: Setup JDK
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: 'corretto'
           java-version: '21'
 
-      - name: Package application
-        run: mvn clean package
+      - name: Build Jar
+        run: |
+          set -eu
+          chmod +x mvnw
 
-      - name: Synth CloudFormation template
+          echo "Packaging application..."          
+          ./mvnw clean package
+
+      - name: Build CloudFormation Stack
         env:
-          DOMAIN: ${{ vars.DOMAIN }}
+          PLATFORM_NAME: ${{ vars.PLATFORM_NAME }}
+          PLATFORM_HOST: ${{ vars.PLATFORM_HOST }}
           HOSTED_ZONE_ID: ${{ vars.HOSTED_ZONE_ID }}
           CERTIFICATE_ARN: ${{ vars.CERTIFICATE_ARN }}
           ROOT_DB_USER: ${{ secrets.ROOT_DB_USER }}
-        run: java -jar target/infra-1.0-SNAPSHOT.jar
+        run: |
+          echo "Synthesizing CloudFormation template..."
+          java -jar target/infra-1.0-SNAPSHOT.jar
 
-      - name: Upload CloudFormation template
+      - name: Upload CloudFormation Stack
         uses: actions/upload-artifact@v4
         with:
           name: cdk-out
@@ -44,7 +52,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment: Prod
     steps:
-      - name: Download CloudFormation template
+      - name: Download CloudFormation Stack
         uses: actions/download-artifact@v8
         with:
           name: cdk-out
@@ -57,7 +65,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Deploy Cdcollaguazo stack
-        run: aws cloudformation deploy \
-              --stack-name Cdcollaguazo \
-              --template-file cdk.out/Cdcollaguazo.template.json
+      - name: Deploy CloudFormation Stack
+        run: |
+          echo "Deploying Infra..."
+          aws cloudformation deploy \
+            --stack-name Infra \
+            --template-file cdk.out/Infra.template.json

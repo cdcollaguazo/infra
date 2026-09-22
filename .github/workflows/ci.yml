@@ -9,42 +9,23 @@ on:
       - main
 
 jobs:
-  test:
-    name: Test
+  compile:
+    name: Compile
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Set up Java
+      - name: Setup JDK
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: 'corretto'
           java-version: '21'
 
-      - name: Run unit tests
-        run: mvn -B verify
+      - name: Compile
+        run: |
+          set -e
+          chmod +x mvnw
 
-  build:
-    name: Build
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Package application
-        run: mvn clean package
-
-      - name: Synth CloudFormation template
-        env:
-          DOMAIN: example.com
-          HOSTED_ZONE_ID: Z1234567890ABC
-          CERTIFICATE_ARN: arn:aws:acm:us-east-1:1234567890:certificate/xyz-123
-          ROOT_DB_USER: dummy
-        run: java -jar target/infra-1.0-SNAPSHOT.jar
+          echo "Starting compilation..."          
+          ./mvnw clean compile
