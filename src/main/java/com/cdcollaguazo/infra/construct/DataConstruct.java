@@ -15,12 +15,8 @@ import static software.amazon.awscdk.services.rds.PostgresInstanceEngineProps.bu
 
 public class DataConstruct extends Construct {
 
-    private final String platformName;
-
     public DataConstruct(Construct scope, String id, Vpc vpc, SecurityGroup rdsSg, Config config) {
         super(scope, id);
-
-        platformName = config.platformName();
 
         // RDS
         DatabaseInstance rds = DatabaseInstance.Builder.create(this, "Rds")
@@ -31,7 +27,7 @@ public class DataConstruct extends Construct {
                 ))
                 .credentials(Credentials.fromGeneratedSecret(config.rootDbUser(),
                         CredentialsBaseOptions.builder()
-                                .secretName(platformName + "-rds")
+                                .secretName("cdcollaguazo-rds")
                                 .build()))
                 .instanceType(InstanceType.of(InstanceClass.BURSTABLE3, InstanceSize.MICRO))
                 .allocatedStorage(30)
@@ -55,23 +51,19 @@ public class DataConstruct extends Construct {
 
         // String Parameters
         StringParameter.Builder.create(this, "RdsInstanceHostParameter")
-                .parameterName(buildParameterName("instance-host"))
+                .parameterName("/cdcollaguazo/rds/instance-host")
                 .stringValue(rds.getDbInstanceEndpointAddress())
                 .build();
 
         StringParameter.Builder.create(this, "RdsInstancePortParameter")
-                .parameterName(buildParameterName("instance-port"))
+                .parameterName("/cdcollaguazo/rds/instance-port")
                 .stringValue(rds.getDbInstanceEndpointPort())
                 .build();
 
         StringParameter.Builder.create(this, "RdsSecretArnParameter")
-                .parameterName(buildParameterName("secret-arn"))
+                .parameterName("/cdcollaguazo/rds/secret-arn")
                 .stringValue(rds.getSecret().getSecretArn())
                 .build();
-    }
-
-    private String buildParameterName(String parameter) {
-        return "/" + platformName + "/rds/" + parameter;
     }
 
 }

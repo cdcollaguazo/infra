@@ -13,23 +13,20 @@ import software.constructs.Construct;
 public class ComputeConstruct extends Construct {
 
     private final ApplicationLoadBalancer alb;
-    private final String platformName;
 
-    public ComputeConstruct(Construct scope, String id, Vpc vpc, SecurityGroup albSg, String platformName) {
+    public ComputeConstruct(Construct scope, String id, Vpc vpc, SecurityGroup albSg) {
         super(scope, id);
-
-        this.platformName = platformName;
 
         // Cluster
         Cluster ecsCluster = Cluster.Builder.create(this, "EcsCluster")
-                .clusterName(platformName)
+                .clusterName("cdcollaguazo")
                 .vpc(vpc)
                 .containerInsightsV2(ContainerInsights.ENHANCED)
                 .build();
 
         // Load Balancer
         alb = ApplicationLoadBalancer.Builder.create(this, "Alb")
-                .loadBalancerName(platformName)
+                .loadBalancerName("cdcollaguazo")
                 .internetFacing(false)
                 .ipAddressType(IpAddressType.IPV4)
                 .vpc(vpc)
@@ -58,23 +55,19 @@ public class ComputeConstruct extends Construct {
 
         // String Parameters
         StringParameter.Builder.create(this, "EcsClusterArnParameter")
-                .parameterName(buildParameterName("ecs", "cluster-arn"))
+                .parameterName("/cdcollaguazo/ecs/cluster-arn")
                 .stringValue(ecsCluster.getClusterArn())
                 .build();
 
         StringParameter.Builder.create(this, "EcsClusterNameParameter")
-                .parameterName(buildParameterName("ecs", "cluster-name"))
+                .parameterName("/cdcollaguazo/ecs/cluster-name")
                 .stringValue(ecsCluster.getClusterName())
                 .build();
 
         StringParameter.Builder.create(this, "AlbHttpListenerArnParameter")
-                .parameterName(buildParameterName("alb", "http-listener-arn"))
+                .parameterName("/cdcollaguazo/alb/http-listener-arn")
                 .stringValue(albHttpListener.getListenerArn())
                 .build();
-    }
-
-    private String buildParameterName(String module, String parameter) {
-        return "/" + platformName + "/" + module + "/" + parameter;
     }
 
     public ApplicationLoadBalancer getAlb() {

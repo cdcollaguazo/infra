@@ -12,7 +12,7 @@ public class InfraApp {
         // Only template creation is needed
         StackProps props = StackProps.builder().synthesizer(new BootstraplessSynthesizer()).build();
 
-        new InfraStack(app, "Infra", props, ConfigLoader.loadConfig());
+        new CdcollaguazoStack(app, "Cdcollaguazo", props, ConfigLoader.loadConfig());
 
         app.synth();
     }

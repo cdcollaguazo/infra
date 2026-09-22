@@ -12,33 +12,30 @@ public class NetworkConstruct extends Construct {
     private final SecurityGroup albSg;
     private final SecurityGroup ecsSg;
     private final SecurityGroup rdsSg;
-    private final String platformName;
 
-    public NetworkConstruct(Construct scope, String id, String platformName) {
+    public NetworkConstruct(Construct scope, String id) {
         super(scope, id);
-
-        this.platformName = platformName;
 
         // VPC and subnets
         vpc = Vpc.Builder
                 .create(this, "Vpc")
                 .ipAddresses(IpAddresses.cidr("10.0.0.0/16"))
-                .vpcName(platformName)
+                .vpcName("cdcollaguazo")
                 .maxAzs(2)
                 .natGateways(2)
                 .subnetConfiguration(List.of(
                         SubnetConfiguration.builder()
-                                .name(platformName + "-public")
+                                .name("cdcollaguazo-public")
                                 .subnetType(SubnetType.PUBLIC)
                                 .cidrMask(24)
                                 .build(),
                         SubnetConfiguration.builder()
-                                .name(platformName + "-private")
+                                .name("cdcollaguazo-private")
                                 .subnetType(SubnetType.PRIVATE_WITH_EGRESS)
                                 .cidrMask(18)
                                 .build(),
                         SubnetConfiguration.builder()
-                                .name(platformName + "-isolated")
+                                .name("cdcollaguazo-isolated")
                                 .subnetType(SubnetType.PRIVATE_ISOLATED)
                                 .cidrMask(24)
                                 .build()
@@ -48,7 +45,7 @@ public class NetworkConstruct extends Construct {
         // Security Groups and inbound/outbound rules for ALB, ECS and RDS.
         albSg = SecurityGroup.Builder.create(this, "AlbSg")
                 .vpc(vpc)
-                .securityGroupName(platformName + "-alb")
+                .securityGroupName("cdcollaguazo-alb")
                 .allowAllOutbound(false)
                 .description("Security group for ALB")
                 .build();
@@ -57,7 +54,7 @@ public class NetworkConstruct extends Construct {
 
         ecsSg = SecurityGroup.Builder.create(this, "EcsSg")
                 .vpc(vpc)
-                .securityGroupName(platformName + "-ecs")
+                .securityGroupName("cdcollaguazo-ecs")
                 .allowAllOutbound(true)
                 .description("Security group for ECS")
                 .build();
@@ -70,7 +67,7 @@ public class NetworkConstruct extends Construct {
 
         rdsSg = SecurityGroup.Builder.create(this, "RdsSg")
                 .vpc(vpc)
-                .securityGroupName(platformName + "-rds")
+                .securityGroupName("cdcollaguazo-rds")
                 .allowAllOutbound(false)
                 .description("Security group for RDS")
                 .build();
@@ -79,17 +76,17 @@ public class NetworkConstruct extends Construct {
 
         // String Parameters
         StringParameter.Builder.create(this, "VpcIdParameter")
-                .parameterName(buildParameterName("vpc-id"))
+                .parameterName("/cdcollaguazo/vpc/vpc-id")
                 .stringValue(vpc.getVpcId())
                 .build();
 
         StringParameter.Builder.create(this, "Az1Parameter")
-                .parameterName(buildParameterName("az-1"))
+                .parameterName("/cdcollaguazo/vpc/az-1")
                 .stringValue(vpc.getAvailabilityZones().get(0))
                 .build();
 
         StringParameter.Builder.create(this, "Az2Parameter")
-                .parameterName(buildParameterName("az-2"))
+                .parameterName("/cdcollaguazo/vpc/az-2")
                 .stringValue(vpc.getAvailabilityZones().get(1))
                 .build();
 
@@ -98,33 +95,29 @@ public class NetworkConstruct extends Construct {
                 .toList();
 
         StringParameter.Builder.create(this, "PrivateSubnet1IdParameter")
-                .parameterName(buildParameterName("private-subnet-1-id"))
+                .parameterName("/cdcollaguazo/vpc/private-subnet-1-id")
                 .stringValue(privateSubnetsIds.get(0))
                 .build();
 
         StringParameter.Builder.create(this, "PrivateSubnet2IdParameter")
-                .parameterName(buildParameterName("private-subnet-2-id"))
+                .parameterName("/cdcollaguazo/vpc/private-subnet-2-id")
                 .stringValue(privateSubnetsIds.get(1))
                 .build();
 
         StringParameter.Builder.create(this, "AlbSgIdParameter")
-                .parameterName(buildParameterName("alb-sg-id"))
+                .parameterName("/cdcollaguazo/vpc/alb-sg-id")
                 .stringValue(albSg.getSecurityGroupId())
                 .build();
 
         StringParameter.Builder.create(this, "EcsSgIdParameter")
-                .parameterName(buildParameterName("ecs-sg-id"))
+                .parameterName("/cdcollaguazo/vpc/ecs-sg-id")
                 .stringValue(ecsSg.getSecurityGroupId())
                 .build();
 
         StringParameter.Builder.create(this, "RdsSgIdParameter")
-                .parameterName(buildParameterName("rds-sg-id"))
+                .parameterName("/cdcollaguazo/vpc/rds-sg-id")
                 .stringValue(rdsSg.getSecurityGroupId())
                 .build();
-    }
-
-    private String buildParameterName(String parameter) {
-        return "/" + platformName + "/vpc/" + parameter;
     }
 
     public Vpc getVpc() {
