@@ -20,12 +20,16 @@ import java.util.Map;
 
 public class IngressConstruct extends Construct {
 
+    private final String platformName;
+
     public IngressConstruct(Construct scope, String id, ApplicationLoadBalancer alb, Config config) {
         super(scope, id);
 
+        this.platformName = config.platformName();
+
         // S3 Bucket
         Bucket bucket = Bucket.Builder.create(this, "S3")
-                .bucketName("cdcollaguazo")
+                .bucketName(platformName)
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .encryption(BucketEncryption.S3_MANAGED)
                 .publicReadAccess(false)
@@ -52,7 +56,7 @@ public class IngressConstruct extends Construct {
 
         // CloudFront Distribution
         Distribution cfDistribution = Distribution.Builder.create(this, "CfDistribution")
-                .domainNames(List.of("www." + config.domain(), config.domain()))
+                .domainNames(List.of("www." + config.platformHost(), config.platformHost()))
                 .certificate(certificate)
                 .defaultRootObject("index.html")
                 .defaultBehavior(BehaviorOptions.builder()
@@ -70,7 +74,7 @@ public class IngressConstruct extends Construct {
         IHostedZone hostedZone = HostedZone.fromHostedZoneAttributes(this, "HostedZone",
                 HostedZoneAttributes.builder()
                         .hostedZoneId(config.hostedZoneId())
-                        .zoneName(config.domain())
+                        .zoneName(config.platformHost())
                         .build());
 
         // WWW Record
@@ -89,14 +93,18 @@ public class IngressConstruct extends Construct {
 
         // String Parameters
         StringParameter.Builder.create(this, "S3BucketNameParameter")
-                .parameterName("/cdcollaguazo/s3/bucket-name")
+                .parameterName(buildParameterName("s3", "bucket-name"))
                 .stringValue(bucket.getBucketName())
                 .build();
 
         StringParameter.Builder.create(this, "CfDistributionIdParameter")
-                .parameterName("/cdcollaguazo/cf/distribution-id")
+                .parameterName(buildParameterName("cf", "distribution-id"))
                 .stringValue(cfDistribution.getDistributionId())
                 .build();
+    }
+
+    private String buildParameterName(String module, String parameter) {
+        return "/" + platformName + "/" + module + "/" + parameter;
     }
 
 }
