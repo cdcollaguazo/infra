@@ -55,38 +55,7 @@ The Java source contains the CDK application, stacks, constructs, and configurat
 
 ---
 
-## 4. Configuration
-
-Deployment-specific values are provided through environment variables.
-
-Examples:
-
-```text
-PLATFORM_NAME
-PLATFORM_HOST
-HOSTED_ZONE_ID
-CERTIFICATE_ARN
-ROOT_DB_USER
-```
-
-AWS-generated resource references are published to **AWS Systems Manager Parameter Store**.
-
-Examples:
-
-```text
-/${PLATFORM_NAME}/prod/vpc/vpc-id
-/${PLATFORM_NAME}/prod/ecs/cluster-name
-/${PLATFORM_NAME}/prod/alb/listener-arn
-/${PLATFORM_NAME}/prod/rds/instance-host
-/${PLATFORM_NAME}/prod/s3/bucket-name
-/${PLATFORM_NAME}/prod/cloudfront/distribution-id
-```
-
-Sensitive values are stored in **AWS Secrets Manager**.
-
----
-
-## 5. Usage
+## 4. Usage
 
 ### Requirements
 
@@ -94,6 +63,17 @@ Sensitive values are stored in **AWS Secrets Manager**.
 - Maven
 - AWS CLI
 - AWS credentials for AWS operations
+
+### Environment variables
+
+Set values for the following:
+```text
+PLATFORM_NAME: example
+PLATFORM_HOST: example.com
+HOSTED_ZONE_ID: Z1234567890ABC
+CERTIFICATE_ARN: arn:aws:acm:us-east-1:1234567890:certificate/xyz-123
+ROOT_DB_USER: dummy
+```
 
 ### Build CloudFormation templates
 
