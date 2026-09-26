@@ -69,6 +69,7 @@ public class ComputeConstruct extends Construct {
 
         // Load Balancer Behavior
         BehaviorOptions albOptions = BehaviorOptions.builder()
+                .origin(albOrigin)
                 .allowedMethods(AllowedMethods.ALLOW_ALL)
                 .cachePolicy(CachePolicy.CACHING_DISABLED)
                 .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
