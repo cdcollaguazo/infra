@@ -1,8 +1,6 @@
 package com.cdcollaguazo.infra.construct;
 
 import software.amazon.awscdk.services.cloudfront.*;
-import software.amazon.awscdk.services.cloudfront.origins.VpcOrigin;
-import software.amazon.awscdk.services.cloudfront.origins.VpcOriginWithEndpointProps;
 import software.amazon.awscdk.services.ec2.SecurityGroup;
 import software.amazon.awscdk.services.ec2.SubnetSelection;
 import software.amazon.awscdk.services.ec2.SubnetType;
@@ -15,10 +13,10 @@ import software.constructs.Construct;
 
 public class ComputeConstruct extends Construct {
 
+    private final ApplicationLoadBalancer alb;
     private final String platformName;
 
-    public ComputeConstruct(Construct scope, String id, Vpc vpc, SecurityGroup albSg, Distribution cfDistribution,
-                            String platformName) {
+    public ComputeConstruct(Construct scope, String id, Vpc vpc, SecurityGroup albSg, String platformName) {
         super(scope, id);
 
         this.platformName = platformName;
@@ -31,7 +29,7 @@ public class ComputeConstruct extends Construct {
                 .build();
 
         // Load Balancer
-        ApplicationLoadBalancer alb = ApplicationLoadBalancer.Builder.create(this, "Alb")
+        alb = ApplicationLoadBalancer.Builder.create(this, "Alb")
                 .loadBalancerName(platformName)
                 .internetFacing(false)
                 .ipAddressType(IpAddressType.IPV4)
@@ -59,27 +57,6 @@ public class ComputeConstruct extends Construct {
                         )
                         .build());
 
-        // Load Balancer Origin
-        VpcOrigin albOrigin = VpcOrigin.withApplicationLoadBalancer(
-                alb, VpcOriginWithEndpointProps.builder()
-                        .protocolPolicy(OriginProtocolPolicy.HTTP_ONLY)
-                        .httpPort(80)
-                        .build()
-        );
-
-        // Load Balancer Behavior
-        BehaviorOptions albOptions = BehaviorOptions.builder()
-                .origin(albOrigin)
-                .allowedMethods(AllowedMethods.ALLOW_ALL)
-                .cachePolicy(CachePolicy.CACHING_DISABLED)
-                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
-                .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-                .build();
-
-        cfDistribution.addBehavior("/auth", albOrigin, albOptions);
-        cfDistribution.addBehavior("/auth/*", albOrigin, albOptions);
-        cfDistribution.addBehavior("*/api/*", albOrigin, albOptions);
-
         // String Parameters
         StringParameter.Builder.create(this, "EcsClusterArnParameter")
                 .parameterName(buildParameterName("ecs", "cluster-arn"))
@@ -99,6 +76,10 @@ public class ComputeConstruct extends Construct {
 
     private String buildParameterName(String module, String parameter) {
         return "/" + platformName + "/" + module + "/" + parameter;
+    }
+
+    public ApplicationLoadBalancer getAlb() {
+        return alb;
     }
 
 }
