@@ -6,9 +6,6 @@ import software.amazon.awscdk.services.certificatemanager.Certificate;
 import software.amazon.awscdk.services.certificatemanager.ICertificate;
 import software.amazon.awscdk.services.cloudfront.*;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
-import software.amazon.awscdk.services.cloudfront.origins.VpcOrigin;
-import software.amazon.awscdk.services.cloudfront.origins.VpcOriginWithEndpointProps;
-import software.amazon.awscdk.services.elasticloadbalancingv2.ApplicationLoadBalancer;
 import software.amazon.awscdk.services.route53.*;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.*;
@@ -16,13 +13,13 @@ import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
 import java.util.List;
-import java.util.Map;
 
 public class IngressConstruct extends Construct {
 
+    private final Distribution cfDistribution;
     private final String platformName;
 
-    public IngressConstruct(Construct scope, String id, ApplicationLoadBalancer alb, Config config) {
+    public IngressConstruct(Construct scope, String id, IHostedZone hostedZone, Config config) {
         super(scope, id);
 
         this.platformName = config.platformName();
@@ -37,26 +34,11 @@ public class IngressConstruct extends Construct {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
-        // Alb behavior
-        BehaviorOptions albOptions = BehaviorOptions.builder()
-                .origin(VpcOrigin.withApplicationLoadBalancer(
-                        alb, VpcOriginWithEndpointProps.builder()
-                                .protocolPolicy(OriginProtocolPolicy.HTTP_ONLY)
-                                .httpPort(80)
-                                .build()
-                        )
-                )
-                .allowedMethods(AllowedMethods.ALLOW_ALL)
-                .cachePolicy(CachePolicy.CACHING_DISABLED)
-                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
-                .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-                .build();
-
         // Certificate
         ICertificate certificate = Certificate.fromCertificateArn(this, "Certificate", config.certificateArn());
 
         // CloudFront Distribution
-        Distribution cfDistribution = Distribution.Builder.create(this, "CfDistribution")
+        cfDistribution = Distribution.Builder.create(this, "CfDistribution")
                 .domainNames(List.of("www." + config.platformHost(), config.platformHost()))
                 .certificate(certificate)
                 .defaultRootObject("index.html")
@@ -64,19 +46,7 @@ public class IngressConstruct extends Construct {
                         .origin(S3BucketOrigin.withOriginAccessControl(bucket))
                         .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
                         .build())
-                .additionalBehaviors(Map.of(
-                        "/auth", albOptions,
-                        "/auth/*", albOptions,
-                        "*/api/*", albOptions
-                ))
                 .build();
-
-        // Hosted zone
-        IHostedZone hostedZone = HostedZone.fromHostedZoneAttributes(this, "HostedZone",
-                HostedZoneAttributes.builder()
-                        .hostedZoneId(config.hostedZoneId())
-                        .zoneName(config.platformHost())
-                        .build());
 
         // WWW Record
         new ARecord(this, "WwwRecord", ARecordProps.builder()
@@ -106,6 +76,10 @@ public class IngressConstruct extends Construct {
 
     private String buildParameterName(String module, String parameter) {
         return "/" + platformName + "/" + module + "/" + parameter;
+    }
+
+    public Distribution getCfDistribution() {
+        return cfDistribution;
     }
 
 }

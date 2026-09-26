@@ -12,6 +12,7 @@ public class NetworkConstruct extends Construct {
     private final SecurityGroup albSg;
     private final SecurityGroup ecsSg;
     private final SecurityGroup rdsSg;
+    private final SecurityGroup efsSg;
     private final String platformName;
 
     public NetworkConstruct(Construct scope, String id, String platformName) {
@@ -77,6 +78,14 @@ public class NetworkConstruct extends Construct {
 
         rdsSg.addIngressRule(ecsSg, Port.tcp(5432), "Allow TCP 5432 from ECS");
 
+        efsSg = SecurityGroup.Builder.create(this, "EfsSg")
+                .vpc(vpc)
+                .securityGroupName(platformName + "-efs")
+                .allowAllOutbound(true)
+                .description("Security group for EFS")
+                .build();
+        efsSg.addIngressRule(ecsSg, Port.tcp(2049), "Allow TCP 2049 from ECS");
+
         // String Parameters
         StringParameter.Builder.create(this, "VpcIdParameter")
                 .parameterName(buildParameterName("vpc-id"))
@@ -121,6 +130,11 @@ public class NetworkConstruct extends Construct {
                 .parameterName(buildParameterName("rds-sg-id"))
                 .stringValue(rdsSg.getSecurityGroupId())
                 .build();
+
+        StringParameter.Builder.create(this, "EfsSgIdParameter")
+                .parameterName(buildParameterName("efs-sg-id"))
+                .stringValue(efsSg.getSecurityGroupId())
+                .build();
     }
 
     private String buildParameterName(String parameter) {
@@ -135,12 +149,16 @@ public class NetworkConstruct extends Construct {
         return albSg;
     }
 
+    public SecurityGroup getEcsSg() {
+        return ecsSg;
+    }
+
     public SecurityGroup getRdsSg() {
         return rdsSg;
     }
 
-    public SecurityGroup getEcsSg() {
-        return ecsSg;
+    public SecurityGroup getEfsSg() {
+        return efsSg;
     }
 
 }

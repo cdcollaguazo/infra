@@ -58,8 +58,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Deploy Infra stack
+      - name: Deploy InfraIngress stack
         run: |
           aws cloudformation deploy \
-            --stack-name Infra \
-            --template-file cdk.out/Infra.template.json
+            --stack-name InfraIngress \
+            --template-file cdk.out/InfraIngress.template.json
+
+      - name: Deploy InfraCompute stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name InfraCompute \
+            --template-file cdk.out/InfraCompute.template.json

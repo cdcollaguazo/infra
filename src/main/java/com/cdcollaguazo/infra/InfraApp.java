@@ -1,5 +1,6 @@
 package com.cdcollaguazo.infra;
 
+import com.cdcollaguazo.infra.config.Config;
 import com.cdcollaguazo.infra.config.ConfigLoader;
 import software.amazon.awscdk.*;
 
@@ -12,7 +13,11 @@ public class InfraApp {
         // Only template creation is needed
         StackProps props = StackProps.builder().synthesizer(new BootstraplessSynthesizer()).build();
 
-        new InfraStack(app, "Infra", props, ConfigLoader.loadConfig());
+        Config config = ConfigLoader.loadConfig();
+
+        InfraIngressStack infraIngressStack = new InfraIngressStack(app, "InfraIngress", props, config);
+
+        new InfraComputeStack(app, "InfraCompute", props, infraIngressStack.getCfDistribution(), config);
 
         app.synth();
     }
