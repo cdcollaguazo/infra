@@ -2,10 +2,12 @@ package com.cdcollaguazo.infra.construct;
 
 import com.cdcollaguazo.infra.config.Config;
 import software.amazon.awscdk.RemovalPolicy;
-import software.amazon.awscdk.services.certificatemanager.Certificate;
 import software.amazon.awscdk.services.certificatemanager.ICertificate;
 import software.amazon.awscdk.services.cloudfront.*;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
+import software.amazon.awscdk.services.cloudfront.origins.VpcOrigin;
+import software.amazon.awscdk.services.cloudfront.origins.VpcOriginWithEndpointProps;
+import software.amazon.awscdk.services.elasticloadbalancingv2.ApplicationLoadBalancer;
 import software.amazon.awscdk.services.route53.*;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.*;
@@ -13,13 +15,14 @@ import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
 import java.util.List;
+import java.util.Map;
 
 public class IngressConstruct extends Construct {
 
-    private final Distribution cfDistribution;
     private final String platformName;
 
-    public IngressConstruct(Construct scope, String id, IHostedZone hostedZone, Config config) {
+    public IngressConstruct(Construct scope, String id, IHostedZone hostedZone, ICertificate certificate,
+                            ApplicationLoadBalancer alb, Config config) {
         super(scope, id);
 
         this.platformName = config.platformName();
@@ -34,51 +37,70 @@ public class IngressConstruct extends Construct {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
-        // Certificate
-        ICertificate certificate = Certificate.fromCertificateArn(this, "Certificate", config.certificateArn());
+        // CloudFront Redirect Function
+        Function cfRedirectFunction = Function.Builder.create(this, "CfRedirectFunction")
+                .code(FunctionCode.fromInline(
+                                """
+                                function handler(event) {
+                                    var request = event.request;
+                                    var host = request.headers.host.value;
+                                    
+                                    if (host === '%s') {
+                                        return {
+                                            statusCode: 301,
+                                            statusDescription: 'Moved Permanently',
+                                            headers: {
+                                                location: {
+                                                    value: 'https://%s' + request.uri
+                                                }
+                                            }
+                                        };
+                                    }
+                                    
+                                    return request;
+                                }
+                                """.formatted(config.platformHost(), "www." + config.platformHost())
+                        )
+                )
+                .runtime(FunctionRuntime.JS_2_0)
+                .build();
+
+        FunctionAssociation cfRedirectFunctionAssociation = FunctionAssociation.builder()
+                .function(cfRedirectFunction)
+                .eventType(FunctionEventType.VIEWER_REQUEST)
+                .build();
+
+        // Alb Behavior
+        BehaviorOptions albOptions = BehaviorOptions.builder()
+                .origin(VpcOrigin.withApplicationLoadBalancer(
+                                alb, VpcOriginWithEndpointProps.builder()
+                                        .protocolPolicy(OriginProtocolPolicy.HTTP_ONLY)
+                                        .httpPort(80)
+                                        .build()
+                        )
+                )
+                .allowedMethods(AllowedMethods.ALLOW_ALL)
+                .cachePolicy(CachePolicy.CACHING_DISABLED)
+                .originRequestPolicy(OriginRequestPolicy.ALL_VIEWER)
+                .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+                .functionAssociations(List.of(cfRedirectFunctionAssociation))
+                .build();
 
         // CloudFront Distribution
-        cfDistribution = Distribution.Builder.create(this, "CfDistribution")
+        Distribution cfDistribution = Distribution.Builder.create(this, "CfDistribution")
                 .domainNames(List.of("www." + config.platformHost(), config.platformHost()))
                 .certificate(certificate)
                 .defaultRootObject("index.html")
                 .defaultBehavior(BehaviorOptions.builder()
                         .origin(S3BucketOrigin.withOriginAccessControl(bucket))
                         .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
+                        .functionAssociations(List.of(cfRedirectFunctionAssociation))
                         .build())
-                .build();
-
-        // CloudFront Redirect Function
-        Function cfRedirectFunction = Function.Builder.create(this, "CfRedirectFunction")
-                .code(FunctionCode.fromInline(
-                        """
-                        function handler(event) {
-                            var request = event.request;
-                            var host = request.headers.host.value;
-                            
-                            if (host === '%s') {
-                                return {
-                                    statusCode: 301,
-                                    statusDescription: 'Moved Permanently',
-                                    headers: {
-                                        location: {
-                                            value: 'https://%s' + request.uri
-                                        }
-                                    }
-                                };
-                            }
-                            
-                            return request;
-                        }
-                        """.formatted(config.platformHost(), "www." + config.platformHost())
-                        )
-                )
-                .runtime(FunctionRuntime.JS_2_0)
-                .build();
-
-        FunctionAssociation.builder()
-                .function(cfRedirectFunction)
-                .eventType(FunctionEventType.VIEWER_REQUEST)
+                .additionalBehaviors(Map.of(
+                        "/auth", albOptions,
+                        "/auth/*", albOptions,
+                        "*/api/*", albOptions
+                ))
                 .build();
 
         // WWW Record
@@ -109,10 +131,6 @@ public class IngressConstruct extends Construct {
 
     private String buildParameterName(String module, String parameter) {
         return "/" + platformName + "/" + module + "/" + parameter;
-    }
-
-    public Distribution getCfDistribution() {
-        return cfDistribution;
     }
 
 }

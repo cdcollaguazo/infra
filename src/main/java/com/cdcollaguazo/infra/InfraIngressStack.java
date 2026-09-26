@@ -4,7 +4,9 @@ import com.cdcollaguazo.infra.config.Config;
 import com.cdcollaguazo.infra.construct.IngressConstruct;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.services.cloudfront.Distribution;
+import software.amazon.awscdk.services.certificatemanager.Certificate;
+import software.amazon.awscdk.services.certificatemanager.ICertificate;
+import software.amazon.awscdk.services.elasticloadbalancingv2.ApplicationLoadBalancer;
 import software.amazon.awscdk.services.route53.HostedZone;
 import software.amazon.awscdk.services.route53.HostedZoneAttributes;
 import software.amazon.awscdk.services.route53.IHostedZone;
@@ -12,9 +14,7 @@ import software.constructs.Construct;
 
 public class InfraIngressStack extends Stack {
 
-    private final Distribution cfDistribution;
-
-    public InfraIngressStack(Construct scope, String id, StackProps props, Config config) {
+    public InfraIngressStack(Construct scope, String id, StackProps props, ApplicationLoadBalancer alb, Config config) {
         super(scope, id, props);
 
         // Hosted Zone
@@ -24,13 +24,10 @@ public class InfraIngressStack extends Stack {
                         .zoneName(config.platformHost())
                         .build());
 
-        IngressConstruct ingressConstruct = new IngressConstruct(this, "Ingress", hostedZone, config);
+        // Certificate
+        ICertificate certificate = Certificate.fromCertificateArn(this, "Certificate", config.certificateArn());
 
-        cfDistribution = ingressConstruct.getCfDistribution();
-    }
-
-    public Distribution getCfDistribution() {
-        return cfDistribution;
+        new IngressConstruct(this, "Ingress", hostedZone, certificate, alb, config);
     }
 
 }
