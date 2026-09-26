@@ -5,6 +5,9 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.services.ec2.*;
 import software.amazon.awscdk.services.ec2.InstanceType;
+import software.amazon.awscdk.services.efs.FileSystem;
+import software.amazon.awscdk.services.efs.PerformanceMode;
+import software.amazon.awscdk.services.efs.ThroughputMode;
 import software.amazon.awscdk.services.rds.*;
 import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
@@ -17,7 +20,7 @@ public class DataConstruct extends Construct {
 
     private final String platformName;
 
-    public DataConstruct(Construct scope, String id, Vpc vpc, SecurityGroup rdsSg, Config config) {
+    public DataConstruct(Construct scope, String id, Vpc vpc, SecurityGroup rdsSg, SecurityGroup efsSg, Config config) {
         super(scope, id);
 
         platformName = config.platformName();
@@ -53,25 +56,45 @@ public class DataConstruct extends Construct {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
+        // EFS
+        FileSystem efs = FileSystem.Builder.create(this, "Efs")
+                .fileSystemName("bsn")
+                .oneZone(false)
+                .enableAutomaticBackups(true)
+                .throughputMode(ThroughputMode.ELASTIC)
+                .performanceMode(PerformanceMode.GENERAL_PURPOSE)
+                .vpc(vpc)
+                .vpcSubnets(SubnetSelection.builder()
+                        .subnetType(SubnetType.PRIVATE_WITH_EGRESS)
+                        .build())
+                .securityGroup(efsSg)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
         // String Parameters
         StringParameter.Builder.create(this, "RdsInstanceHostParameter")
-                .parameterName(buildParameterName("instance-host"))
+                .parameterName(buildParameterName("rds", "instance-host"))
                 .stringValue(rds.getDbInstanceEndpointAddress())
                 .build();
 
         StringParameter.Builder.create(this, "RdsInstancePortParameter")
-                .parameterName(buildParameterName("instance-port"))
+                .parameterName(buildParameterName("rds", "instance-port"))
                 .stringValue(rds.getDbInstanceEndpointPort())
                 .build();
 
         StringParameter.Builder.create(this, "RdsSecretArnParameter")
-                .parameterName(buildParameterName("secret-arn"))
+                .parameterName(buildParameterName("rds", "secret-arn"))
                 .stringValue(rds.getSecret().getSecretArn())
+                .build();
+
+        StringParameter.Builder.create(this, "EfsFileSystemIdParameter")
+                .parameterName(buildParameterName("efs", "file-system-id"))
+                .stringValue(efs.getFileSystemId())
                 .build();
     }
 
-    private String buildParameterName(String parameter) {
-        return "/" + platformName + "/rds/" + parameter;
+    private String buildParameterName(String module, String parameter) {
+        return "/" + platformName + "/" + module + "/" + parameter;
     }
 
 }
