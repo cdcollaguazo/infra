@@ -48,6 +48,39 @@ public class IngressConstruct extends Construct {
                         .build())
                 .build();
 
+        // CloudFront Redirect Function
+        Function cfRedirectFunction = Function.Builder.create(this, "CfRedirectFunction")
+                .code(FunctionCode.fromInline(
+                        """
+                        function handler(event) {
+                            var request = event.request;
+                            var host = request.headers.host.value;
+                            
+                            if (host === '%s') {
+                                return {
+                                    statusCode: 301,
+                                    statusDescription: 'Moved Permanently',
+                                    headers: {
+                                        location: {
+                                            value: 'https://%s' + request.uri
+                                        }
+                                    }
+                                };
+                            }
+                            
+                            return request;
+                        }
+                        """.formatted(config.platformHost(), "www." + config.platformHost())
+                        )
+                )
+                .runtime(FunctionRuntime.JS_2_0)
+                .build();
+
+        FunctionAssociation.builder()
+                .function(cfRedirectFunction)
+                .eventType(FunctionEventType.VIEWER_REQUEST)
+                .build();
+
         // WWW Record
         new ARecord(this, "WwwRecord", ARecordProps.builder()
                 .zone(hostedZone)
