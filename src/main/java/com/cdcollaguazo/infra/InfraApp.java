@@ -15,9 +15,9 @@ public class InfraApp {
 
         Config config = ConfigLoader.loadConfig();
 
-        InfraComputeStack infraComputeStack = new InfraComputeStack(app, "InfraCompute", props, config);
+        new InfraComputeStack(app, "InfraCompute", props, config);
 
-        new InfraIngressStack(app, "InfraIngress", props, infraComputeStack.getAlb(), config);
+        new InfraIngressStack(app, "InfraIngress", props, config);
 
         app.synth();
     }
