@@ -13,7 +13,6 @@ import software.constructs.Construct;
 
 public class ComputeConstruct extends Construct {
 
-    private final ApplicationLoadBalancer alb;
     private final String platformName;
 
     public ComputeConstruct(Construct scope, String id, Vpc vpc, SecurityGroup albSg, String platformName) {
@@ -29,7 +28,7 @@ public class ComputeConstruct extends Construct {
                 .build();
 
         // Load Balancer
-        alb = ApplicationLoadBalancer.Builder.create(this, "Alb")
+        ApplicationLoadBalancer alb = ApplicationLoadBalancer.Builder.create(this, "Alb")
                 .loadBalancerName(platformName)
                 .internetFacing(false)
                 .ipAddressType(IpAddressType.IPV4)
@@ -68,6 +67,16 @@ public class ComputeConstruct extends Construct {
                 .stringValue(ecsCluster.getClusterName())
                 .build();
 
+        StringParameter.Builder.create(this, "AlbLoadBalancerArnParameter")
+                .parameterName(buildParameterName("alb", "load-balancer-arn"))
+                .stringValue(alb.getLoadBalancerArn())
+                .build();
+
+        StringParameter.Builder.create(this, "AlbLoadBalancerDnsNameParameter")
+                .parameterName(buildParameterName("alb", "load-balancer-dns-name"))
+                .stringValue(alb.getLoadBalancerDnsName())
+                .build();
+
         StringParameter.Builder.create(this, "AlbHttpListenerArnParameter")
                 .parameterName(buildParameterName("alb", "http-listener-arn"))
                 .stringValue(albHttpListener.getListenerArn())
@@ -76,10 +85,6 @@ public class ComputeConstruct extends Construct {
 
     private String buildParameterName(String module, String parameter) {
         return "/" + platformName + "/" + module + "/" + parameter;
-    }
-
-    public ApplicationLoadBalancer getAlb() {
-        return alb;
     }
 
 }

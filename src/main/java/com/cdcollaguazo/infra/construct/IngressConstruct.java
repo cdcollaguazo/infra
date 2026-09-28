@@ -7,7 +7,7 @@ import software.amazon.awscdk.services.cloudfront.*;
 import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.VpcOrigin;
 import software.amazon.awscdk.services.cloudfront.origins.VpcOriginWithEndpointProps;
-import software.amazon.awscdk.services.elasticloadbalancingv2.ApplicationLoadBalancer;
+import software.amazon.awscdk.services.elasticloadbalancingv2.IApplicationLoadBalancer;
 import software.amazon.awscdk.services.route53.*;
 import software.amazon.awscdk.services.route53.targets.CloudFrontTarget;
 import software.amazon.awscdk.services.s3.*;
@@ -22,7 +22,7 @@ public class IngressConstruct extends Construct {
     private final String platformName;
 
     public IngressConstruct(Construct scope, String id, IHostedZone hostedZone, ICertificate certificate,
-                            ApplicationLoadBalancer alb, Config config) {
+                            IApplicationLoadBalancer alb, Config config) {
         super(scope, id);
 
         this.platformName = config.platformName();
