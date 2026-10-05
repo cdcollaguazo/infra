@@ -44,7 +44,7 @@ public class IngressConstruct extends Construct {
                                 function handler(event) {
                                     var request = event.request;
                                     var host = request.headers.host.value;
-                                    
+
                                     if (host === '%s') {
                                         return {
                                             statusCode: 301,
@@ -56,7 +56,7 @@ public class IngressConstruct extends Construct {
                                             }
                                         };
                                     }
-                                    
+
                                     return request;
                                 }
                                 """.formatted(config.platformHost(), "www." + config.platformHost())
@@ -67,6 +67,45 @@ public class IngressConstruct extends Construct {
 
         FunctionAssociation cfRedirectFunctionAssociation = FunctionAssociation.builder()
                 .function(cfRedirectFunction)
+                .eventType(FunctionEventType.VIEWER_REQUEST)
+                .build();
+
+        Function spaRoutingFunction = Function.Builder.create(this, "SpaRoutingFunction")
+                .code(FunctionCode.fromInline(
+                                """ 
+                                function handler(event) {
+                                    var request = event.request;
+                                    var uri = request.uri;
+
+                                    if (uri === '/') {
+                                        request.uri = '/index.html';
+                                        return request;
+                                    }
+
+                                    var lastSegment = uri.substring(uri.lastIndexOf('/') + 1);
+
+                                    if (lastSegment.indexOf('.') !== -1) {
+                                        return request;
+                                    }
+
+                                    var segments = uri.split('/').filter(function(segment) {
+                                        return segment.length > 0;
+                                    });
+
+                                    if (segments.length > 0) {
+                                        request.uri = '/' + segments[0] + '/index.html';
+                                    }
+
+                                    return request;
+                                }
+                                """
+                        )
+                )
+                .runtime(FunctionRuntime.JS_2_0)
+                .build();
+
+        FunctionAssociation spaRoutingFunctionAssociation = FunctionAssociation.builder()
+                .function(spaRoutingFunction)
                 .eventType(FunctionEventType.VIEWER_REQUEST)
                 .build();
 
@@ -94,7 +133,7 @@ public class IngressConstruct extends Construct {
                 .defaultBehavior(BehaviorOptions.builder()
                         .origin(S3BucketOrigin.withOriginAccessControl(bucket))
                         .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS)
-                        .functionAssociations(List.of(cfRedirectFunctionAssociation))
+                        .functionAssociations(List.of(cfRedirectFunctionAssociation, spaRoutingFunctionAssociation))
                         .build())
                 .additionalBehaviors(Map.of(
                         "/auth", albOptions,
